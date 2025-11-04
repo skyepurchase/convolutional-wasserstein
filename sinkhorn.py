@@ -44,16 +44,20 @@ def sinkhorn(mu_0, mu_1, tol=1e-6, maxiter=1000, epsilon=0.1):
     solv_1 = LinearVariationalSolver(prob_1, solver_parameters=params)
 
     n=0
+    res = 1
+    maxiter = 10
     while (tol < res) and (n < maxiter):
-        solv_0.solve()
+
+        old_0 = v_0.copy(deepcopy=True)
+        old_1 = v_1.copy(deepcopy=True)
+
         solv_1.solve()
-
-        res = (norm(new_v_0 - v_0) + norm(new_v_1 - v_1))
-        print(res)
-
         v_0.interpolate(mu_0 / new_v_1)
+        solv_0.solve()
         v_1.interpolate(mu_1 / new_v_0)
-
+        
+        res = norm(v_0 - old_0) + norm(v_1 - old_1)
+        print(res)
         n+=1
 
     # is this -1 * epsilon?
