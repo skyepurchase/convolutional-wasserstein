@@ -7,7 +7,7 @@ n = 30
 mean_0 = [0.1, 0.1]
 mean_1 = [0.5, 0.5]
 sigma = 0.1
-epsilon = 0.1
+epsilon = 0.01
 
 mesh = UnitSquareMesh(n, n)
 V = FunctionSpace(mesh, "CG", 1)
@@ -19,6 +19,10 @@ mu_1 = Function(V)
 x, y = SpatialCoordinate(mesh)
 mu_0.interpolate((1 / (2 * pi * sigma**2)) * exp(-((x- mean_0[0])**2 + (y - mean_0[1])**2) / (2 * sigma**2)))
 mu_1.interpolate((1 / (2 * pi * sigma**2)) * exp(-((x- mean_1[0])**2 + (y - mean_1[1])**2) / (2 * sigma**2)))
+Imu_0 = assemble(mu_0*dx)
+Imu_1 = assemble(mu_1*dx)
+mu_1.assign(mu_1/Imu_1)
+mu_0.assign(mu_0/Imu_0)
 
 def sinkhorn(mu_0, mu_1, tol=1e-6, maxiter=1000, epsilon=0.1):
     v_0 = Function(V)
@@ -67,12 +71,20 @@ def sinkhorn(mu_0, mu_1, tol=1e-6, maxiter=1000, epsilon=0.1):
 
 phi, psi = sinkhorn(mu_0, mu_1)
 
-plan = Function(V)
-plan.interpolate(phi * psi) # ignore ; this is a test
+Vc = mesh.coordinates.function_space()
 x, y = SpatialCoordinate(mesh)
+f = Function(Vc).interpolate(grad(phi))
+mesh.coordinates.assign(f)
 
-fig, axes = plt.subplots()
-colors = tripcolor(plan, axes=axes)
-fig.colorbar(colors)
-plt.title("Sinkhorn Plan")
-plt.show()
+# plan = Function(V)
+# plan.interpolate(phi * psi) # ignore ; this is a test
+# x, y = SpatialCoordinate(mesh)
+
+# fig, axes = plt.subplots()
+# colors = tripcolor(plan, axes=axes)
+# fig.colorbar(colors)
+# plt.title("Sinkhorn Plan")
+# plt.show()
+
+VTKFile("phi.pvd").write(mu_0)
+
