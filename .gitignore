@@ -12,3 +12,6 @@ wheels/
 # Firedrake
 firedrake-configure
 petsc/
+
+# Latex
+*.pdf
