@@ -13,6 +13,7 @@ venv-firedrake/
 # Firedrake
 firedrake-configure
 petsc/
+*.pvd
 
 # Latex
 *.pdf
