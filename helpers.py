@@ -33,3 +33,32 @@ def heat_kernel(T, N, mesh):
     solv.solve()
     
     return unp1 
+
+
+def gaussian_2d(n, mu, sigma):
+    """
+    Creates a 2D Gaussian distribution on an n x n grid with mean mu and standard deviation sigma.
+
+    Parameters
+    ----------
+    n : int
+        Size of the grid (n x n).
+    mu : tuple of float
+        Mean of the Gaussian in x and y directions.
+    sigma : float
+        Standard deviation of the Gaussian.
+
+    Returns
+    -------
+    numpy.ndarray
+        2D array representing the Gaussian distribution.
+    """
+    import numpy as np
+
+    x = np.linspace(0, 1, n)
+    y = np.linspace(0, 1, n)
+    X, Y = np.meshgrid(x, y)
+
+    gauss = (1 / (2 * np.pi * sigma**2)) * np.exp(-((X - mu[0])**2 + (Y - mu[1])**2) / (2 * sigma**2))
+    
+    return gauss
