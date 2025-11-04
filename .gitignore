@@ -8,6 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+venv-firedrake/
 
 # Firedrake
 firedrake-configure
@@ -15,3 +16,6 @@ petsc/
 
 # Latex
 *.pdf
+
+# test files
+experimental/
