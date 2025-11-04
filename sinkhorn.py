@@ -26,7 +26,14 @@ mu_1.assign(mu_1/Imu_1)
 mu_0.assign(mu_0/Imu_0)
 
 
-def sinkhorn(mu_0, mu_1, tol=1e-6, maxiter=10, epsilon=0.1):
+def sinkhorn(
+    mu_0,
+    mu_1,
+    V,
+    tol=1e-6,
+    maxiter=10,
+    epsilon=0.1
+):
     """
     Repeat the sinkhorn iteration until the tolerance is reached or maximum iterations.
 
@@ -34,6 +41,7 @@ def sinkhorn(mu_0, mu_1, tol=1e-6, maxiter=10, epsilon=0.1):
     ----------
     mu_0    : The source distribution
     mu_1    : The target distribution
+    V       : The function space mu_0 and mu_1 are in
     tol     : The tolerance at which to stop
     maxiter : The maximum number of iterations
     epsilon : The regularisation parameter
@@ -41,8 +49,8 @@ def sinkhorn(mu_0, mu_1, tol=1e-6, maxiter=10, epsilon=0.1):
     phi = Function(V)
     psi = Function(V)
 
-    Solver_0 = HeatEquationSolver(V)
-    Solver_1 = HeatEquationSolver(V)
+    Solver_0 = HeatEquationSolver(V, dt=epsilon/2)
+    Solver_1 = HeatEquationSolver(V, dt=epsilon/2)
     Solver_1.initialise()
 
     n=0
@@ -65,7 +73,7 @@ def sinkhorn(mu_0, mu_1, tol=1e-6, maxiter=10, epsilon=0.1):
     psi.interpolate(epsilon * ln(Solver_1.function)) #psi
     return phi, psi
 
-phi, psi = sinkhorn(mu_0, mu_1, epsilon=EPSILON)
+phi, psi = sinkhorn(mu_0, mu_1, V, epsilon=EPSILON)
 
 Vc = MESH.coordinates.function_space()
 x, y = SpatialCoordinate(MESH)
