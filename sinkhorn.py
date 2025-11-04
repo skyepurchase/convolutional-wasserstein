@@ -27,6 +27,17 @@ mu_0.assign(mu_0/Imu_0)
 
 
 def sinkhorn(mu_0, mu_1, tol=1e-6, maxiter=10, epsilon=0.1):
+    """
+    Repeat the sinkhorn iteration until the tolerance is reached or maximum iterations.
+
+    Parameters
+    ----------
+    mu_0    : The source distribution
+    mu_1    : The target distribution
+    tol     : The tolerance at which to stop
+    maxiter : The maximum number of iterations
+    epsilon : The regularisation parameter
+    """
     phi = Function(V)
     psi = Function(V)
 
