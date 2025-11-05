@@ -108,7 +108,7 @@ def sinkhorn(
     Solver_0 = HeatEquationSolver(Vs[0], dt=epsilons[0]/2)
     Solver_1 = HeatEquationSolver(Vs[0], dt=epsilons[0]/2)
 
-    Solver_0.initialise()
+    Solver_1.initialise()
 
     for V, eps in zip(Vs, epsilons):
         print(f"\nRunning with epsilon={eps}")
@@ -117,7 +117,7 @@ def sinkhorn(
         Solver_1.refine(V, eps/2)
 
         curr_mu_0 = assemble(interpolate(mu_0, V))
-        curr_mu_1 = assemble(interpolate(mu_0, V))
+        curr_mu_1 = assemble(interpolate(mu_1, V))
 
         i = 0
         res = 1
