@@ -1,23 +1,59 @@
 import matplotlib.pyplot as plt
 
 from firedrake import *
-from firedrake.pyplot import tripcolor, tricontour
+from firedrake.pyplot import tripcolor
 
 from solvers import HeatEquationSolver
 
 
-def initialise_env(epsilon, mesher, make_space):
-    """Initialise mesh and function space. Mesh discretisation fixed to be of order 1/(epsilon**2)."""
-    n = int(1 / (epsilon**2)) # Mesh size
-    mesh = mesher(30, 30)
-    v = make_space(mesh, "CG", 1)
-    return mesh, v
+# Constants
+EPSILONS = [0.5, 0.1, 0.05, 0.01]
+MEAN_0 = [0.1, 0.1]
+MEAN_1 = [0.5, 0.5]
+SIGMA_0 = SIGMA_1 = 0.1
+
+
+def initialise_env(
+    target_size,
+    levels,
+    mesher,
+    make_space
+):
+    """
+    Initialise a function space hierarchy
+
+    Parameters
+    ----------
+    target_size : The size of the finest grid
+    levels      : The number of levels to create
+    mesher      : The firedrake mesh maker
+    make_space  : The function space maker
+
+    Returns
+    -------
+    vs : The hierarchy of function spaces
+    """
+    print("\nInitialising environment...")
+    # Calculate the coarse size to refine (each cell becomes 4)
+    start_size = int(target_size / (4**levels))
+
+    mesh = mesher(start_size, start_size)
+    hierarchy = MeshHierarchy(mesh, levels)
+
+    vs = []
+    for sub_mesh in hierarchy:
+        print("New sub mesh")
+        vs.append(make_space(sub_mesh, "CG", 1))
+
+    print("Done!\n")
+
+    return vs
 
 
 def generate_gaussians(V, mean_0, mean_1, sigma_0, sigma_1):
     """
     Generate simple Gaussian distributions for OT. Handles conversion to Firedrake symbolic function.
-    
+
     Parameters
     ----------
     V         : Funnction space to define probability density functions on. 
@@ -31,7 +67,7 @@ def generate_gaussians(V, mean_0, mean_1, sigma_0, sigma_1):
     mu_0 = Function(V)
     mu_1 = Function(V)
 
-    x, y = SpatialCoordinate(MESH)
+    x, y = SpatialCoordinate(mesh)
     mu_0.interpolate((1 / (2 * pi * sigma_0**2)) * exp(-((x- mean_0[0])**2 + (y - mean_0[1])**2) / (2 * sigma_0**2)))
     mu_1.interpolate((1 / (2 * pi * sigma_1**2)) * exp(-((x- mean_1[0])**2 + (y - mean_1[1])**2) / (2 * sigma_1**2)))
 
@@ -43,72 +79,80 @@ def generate_gaussians(V, mean_0, mean_1, sigma_0, sigma_1):
     return mu_0, mu_1
 
 
-# Constants
-EPSILON = 0.1
-MEAN_0 = [0.1, 0.1]
-MEAN_1 = [0.5, 0.5]
-SIGMA_0 = SIGMA_1 = 0.1
-
-# Initialise mesh and function space
-MESH, V = initialise_env(EPSILON, UnitSquareMesh, FunctionSpace)
-
-# Generate Gaussian distributions
-mu_0, mu_1 = generate_gaussians(V, MEAN_0, MEAN_1, SIGMA_0, SIGMA_1)    
-
 def sinkhorn(
     mu_0,
     mu_1,
-    V,
+    Vs,
+    epsilons=[0.5, 0.1, 0.05, 0.01],
     tol=1e-6,
-    maxiter=10,
-    epsilon=0.1
+    maxiter=10
 ):
     """
     Repeat the sinkhorn iteration until the tolerance is reached or maximum iterations.
 
     Parameters
     ----------
-    mu_0    : The source distribution
-    mu_1    : The target distribution
-    V       : The function space mu_0 and mu_1 are in
-    tol     : The tolerance at which to stop
-    maxiter : The maximum number of iterations
-    epsilon : The regularisation parameter
+    mu_0     : The source distribution defined on Vs[-1]
+    mu_1     : The target distribution defined on Vs[-1]
+    Vs       : The hierarchy of function spaces
+    epsilons : The regularisation parameter schedule
+    tol      : The tolerance at which to stop
+    maxiter  : The maximum number of iterations
     """
-    phi = Function(V)
-    psi = Function(V)
+    print("\nRunning Sinkhorn iteration...")
 
-    Solver_0 = HeatEquationSolver(V, dt=epsilon/2)
-    Solver_1 = HeatEquationSolver(V, dt=epsilon/2)
-    Solver_1.initialise()
+    phi = Function(Vs[-1])
+    psi = Function(Vs[-1])
 
-    i = 0
-    res = 1
-    while (tol < res) and (i < maxiter):
-        Solver_1.solve()
-        res = norm(
-            Solver_0.function -
-            (mu_0 / Solver_1.output_function)
-        )
-        Solver_0.update(mu_0 / Solver_1.output_function)
-        Solver_0.solve()
-        Solver_1.update(mu_1 / Solver_0.output_function)
+    Solver_0 = HeatEquationSolver(Vs[0], dt=epsilons[0]/2)
+    Solver_1 = HeatEquationSolver(Vs[0], dt=epsilons[0]/2)
 
-        print(res)
-        i += 1
+    Solver_0.initialise()
 
-    phi.interpolate(epsilon * ln(Solver_0.function)) #phi
-    psi.interpolate(epsilon * ln(Solver_1.function)) #psi
+    for V, eps in zip(Vs, epsilons):
+        print(f"\nRunning with epsilon={eps}")
+
+        Solver_0.refine(V, eps/2)
+        Solver_1.refine(V, eps/2)
+
+        i = 0
+        res = 1
+        while (tol < res) and (i < maxiter):
+            Solver_1.solve()
+            res = norm(
+                Solver_0.function -
+                (mu_0 / Solver_1.output_function)
+            )
+            Solver_0.update(mu_0 / Solver_1.output_function)
+            Solver_0.solve()
+            Solver_1.update(mu_1 / Solver_0.output_function)
+
+            print(res)
+            i += 1
+
+    phi.interpolate(epsilons[-1] * ln(Solver_0.function))
+    psi.interpolate(epsilons[-1] * ln(Solver_1.function))
+
+    print("\nDone!\n")
     return phi, psi
 
-phi, psi = sinkhorn(mu_0, mu_1, V, epsilon=EPSILON)
 
-Vc = MESH.coordinates.function_space()
-x, y = SpatialCoordinate(MESH)
-f = Function(Vc).interpolate(grad(phi))
-MESH.coordinates.assign(f)
+if __name__=='__main__':
+    # Initialise mesh and function space
+    Vs = initialise_env(32768, len(EPSILONS), UnitSquareMesh, FunctionSpace)
 
-fig, axes = plt.subplots()
-colors = tripcolor(mu_0, axes=axes)
-fig.colorbar(colors)
-plt.show()
+    # Generate Gaussian distributions
+    mu_0, mu_1 = generate_gaussians(Vs, MEAN_0, MEAN_1, SIGMA_0, SIGMA_1)
+
+    phi, psi = sinkhorn(mu_0, mu_1, Vs, epsilons=EPSILON)
+
+    print("\nVisualising...")
+    Vc = Vs[-1].mesh().coordinates.function_space()
+    x, y = SpatialCoordinate(Vs[-1].mesh())
+    f = Function(Vc).interpolate(grad(phi))
+    Vs[-1].mesh().coordinates.assign(f)
+
+    fig, axes = plt.subplots()
+    colors = tripcolor(mu_0, axes=axes)
+    fig.colorbar(colors)
+    plt.show()
