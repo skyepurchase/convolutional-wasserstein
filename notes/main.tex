@@ -80,22 +80,32 @@ Let $\mathcal{H}_t(x,y)$ be the heat kernel then, by \cite[Eq 7]{solomon2015conv
 For notational convenience, define $v_0(x) = e^{\frac{\varphi(x)}{\epsilon}}$ and $v_1(x) = e^{\frac{\psi(y)}{\epsilon}}$. The marginal constraints on $\pi_\epsilon^\star$ imply the following constraints: 
 \begin{align*}
     & v_0(x) = \frac{\mu_0(x)}{\int_{\R^d}\mathcal{H}_\frac{\epsilon}{2}(x, y) v_1(y) \, dy} \\& 
-    v_1(y) = \frac{\mu_1(y)}{\int_{\R^d}\mathcal{H}_\frac{\epsilon}{2}(x, y) v_0(x) \, dx}.
+    v_1(y) = \frac{\mu_1(y)}{\int_{\R^d}\mathcal{H}_\frac{\epsilon}{2}(x, y) v_0(x) \, dx},
 \end{align*}
-
 which can be solved using Sinkhorns algorithm \eqref{alg:sinkhorn} where the integral is a heat equation with initial condition $v_1(y)$ or $v_0(x)$. This is iterated until $(\varphi, \psi)$ is approximately a fixed point.
 \begin{algorithm}[H]
 \caption{Sinkhorn Algorithm}\label{alg:sinkhorn}
-\begin{algorithmic}
-\State Initialize $v_0^{0}(x) = 1$, $v_1^{0}(x) = 1$
-\For{$k = 0, 1, 2, \dots$}
-    \State $v_0^{k+1}(x) = \frac{\mu_0(x)}{\int_{\R^d} K_\epsilon(x, y) v_1^k(y) \, dy}$
-    \State $v_1^{k+1}(y) = \frac{\mu_1(y)}{\int_{\R^d} K_\epsilon(x, y) v_0^{k+1}(x) \, dx}$
-\EndFor
-\State $\pi(x, y) = v_0^{k}(x) K_\epsilon(x, y) v_1^{k}(y)$
-\State \textbf{return} $\pi$
+\begin{algorithmic}[1]
+\Require $\mu_0, \mu_1 \in \mathcal{P}(\R^d)$, \ $\epsilon > 0$, \ $\text{tol} > 0$, \ $\text{max\_iter} \in \mathbb{N}_{+}$
+\State Initialize $v_0^{(0)}(x) \gets 1$, \ $v_1^{(0)}(x) \gets 1$
+\State Set $\text{res} \gets 1$, \ $k \gets 0$
+\While{$\text{res} > \text{tol}$ \textbf{and} $k < \text{max\_iter}$}
+    \State $v_0^{(k+1)}(x) \gets 
+        \dfrac{\mu_0(x)}
+        {\displaystyle\int_{\R^d} \mathcal{H}_{\frac{\epsilon}{2}}(x, y)\, v_1^{(k)}(y)\, dy}$
+    \State $\text{res} \gets 
+        \displaystyle\int_{\R^d} 
+        \big|v_0^{(k+1)}(x) - v_0^{(k)}(x)\big|^2 \, dx$
+    \State $v_1^{(k+1)}(y) \gets 
+        \dfrac{\mu_1(y)}
+        {\displaystyle\int_{\R^d} \mathcal{H}_{\frac{\epsilon}{2}}(x, y)\, v_0^{(k+1)}(x)\, dx}$
+    \State $k \gets k + 1$
+\EndWhile
+\State Set $\varphi(x) \gets \epsilon \ln v_0^{(k)}(x)$, \quad $\psi(y) \gets \epsilon \ln v_1^{(k)}(y)$
+\State \Return $(\varphi, \psi)$
 \end{algorithmic}
 \end{algorithm}
+
 \bibliographystyle{plain} %
 \bibliography{references}
 
