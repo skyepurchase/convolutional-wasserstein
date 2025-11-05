@@ -1,5 +1,13 @@
 import matplotlib.pyplot as plt
 
+try:
+    from tqdm import tqdm
+    TQDM=True
+except:
+    print("WARNING: Could not import `tqdm` please run `pip install tqdm` within the virtual environment.")
+    print("INFO: Running without progressbar\n")
+    TQDM=False
+
 from firedrake import *
 from firedrake.pyplot import tripcolor
 
@@ -7,7 +15,7 @@ from solvers import HeatEquationSolver
 
 
 # Constants
-EPSILONS = [0.5, 0.1, 0.05, 0.01]
+EPSILONS = [0.1, 0.05, 0.02, 0.01]
 MEAN_0 = [0.1, 0.1]
 MEAN_1 = [0.5, 0.5]
 SIGMA_0 = SIGMA_1 = 0.1
@@ -33,7 +41,7 @@ def initialise_env(
     -------
     vs : The hierarchy of function spaces
     """
-    print("\nInitialising environment...")
+    print("\nInitialising environment (this may take a while)...")
     # Calculate the coarse size to refine (each cell becomes 4)
     start_size = int(target_size / (4**levels))
 
@@ -41,6 +49,7 @@ def initialise_env(
     hierarchy = MeshHierarchy(mesh, levels)
 
     vs = []
+
     for sub_mesh in hierarchy:
         vs.append(make_space(sub_mesh, "CG", 1))
 
@@ -110,8 +119,17 @@ def sinkhorn(
 
     Solver_1.initialise()
 
-    for V, eps in zip(Vs, epsilons):
-        print(f"\nRunning with epsilon={eps}")
+    if TQDM:
+        iter = tqdm(
+            zip(Vs, epsilons),
+            total=len(Vs),
+            leave=False
+        )
+    else:
+        iter = zip(Vs, epsilons)
+
+    for V, eps in iter:
+        if not TQDM: print(f"\nRunning with epsilon={eps}\n")
 
         Solver_0.refine(V, eps/2)
         Solver_1.refine(V, eps/2)
@@ -131,19 +149,23 @@ def sinkhorn(
             Solver_0.solve()
             Solver_1.update(curr_mu_1 / Solver_0.output_function)
 
-            print(res)
+            if TQDM:
+                iter.set_description(f"epsilon={eps} residual={res:.6f}")
+            else:
+                print(res)
+
             i += 1
 
     phi.interpolate(epsilons[-1] * ln(Solver_0.function))
     psi.interpolate(epsilons[-1] * ln(Solver_1.function))
 
-    print("\nDone!\n")
+    print("Done!\n")
     return phi, psi
 
 
 if __name__=='__main__':
     # Initialise mesh and function space
-    Vs = initialise_env(2048, len(EPSILONS), UnitSquareMesh, FunctionSpace)
+    Vs = initialise_env(8192, len(EPSILONS), UnitSquareMesh, FunctionSpace)
 
     # Generate Gaussian distributions
     mu_0, mu_1 = generate_gaussians(Vs[-1], MEAN_0, MEAN_1, SIGMA_0, SIGMA_1)
