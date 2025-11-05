@@ -7,35 +7,53 @@ from solvers import HeatEquationSolver
 
 
 def initialise_env(epsilon, mesher, make_space):
-    """Initialise mesh and function space. Mesh discretisation fixed to be of order 1/(epsilon**2)"""
+    """Initialise mesh and function space. Mesh discretisation fixed to be of order 1/(epsilon**2)."""
     n = int(1 / (epsilon**2)) # Mesh size
     mesh = mesher(30, 30)
     v = make_space(mesh, "CG", 1)
     return mesh, v
 
+
+def generate_gaussians(V, mean_0, mean_1, sigma_0, sigma_1):
+    """
+    Generate simple Gaussian distributions for OT. Handles conversion to Firedrake symbolic function.
+    
+    Parameters
+    ----------
+    V         : Funnction space to define probability density functions on. 
+    mean_0    : 2d array containing mean of mu_0.
+    mean_1    : 2d array containing mean of mu_1.
+    sigma_0   : Standard deviation of mu_0.
+    sigma_1   : Standard deviation of mu_1.
+    """
+
+    # Set up probability distributions
+    mu_0 = Function(V)
+    mu_1 = Function(V)
+
+    x, y = SpatialCoordinate(MESH)
+    mu_0.interpolate((1 / (2 * pi * sigma_0**2)) * exp(-((x- mean_0[0])**2 + (y - mean_0[1])**2) / (2 * sigma_0**2)))
+    mu_1.interpolate((1 / (2 * pi * sigma_1**2)) * exp(-((x- mean_1[0])**2 + (y - mean_1[1])**2) / (2 * sigma_1**2)))
+
+    # Normalise on mesh
+    Imu_0 = assemble(mu_0*dx)
+    Imu_1 = assemble(mu_1*dx)
+    mu_1.assign(mu_1/Imu_1)
+    mu_0.assign(mu_0/Imu_0)
+    return mu_0, mu_1
+
+
 # Constants
-EPSILON = 0.01
+EPSILON = 0.1
 MEAN_0 = [0.1, 0.1]
 MEAN_1 = [0.5, 0.5]
-SIGMA = 0.1
+SIGMA_0 = SIGMA_1 = 0.1
 
 # Initialise mesh and function space
 MESH, V = initialise_env(EPSILON, UnitSquareMesh, FunctionSpace)
 
-# Set up probability distributions
-mu_0 = Function(V)
-mu_1 = Function(V)
-
-x, y = SpatialCoordinate(MESH)
-mu_0.interpolate((1 / (2 * pi * SIGMA**2)) * exp(-((x- MEAN_0[0])**2 + (y - MEAN_0[1])**2) / (2 * SIGMA**2)))
-mu_1.interpolate((1 / (2 * pi * SIGMA**2)) * exp(-((x- MEAN_1[0])**2 + (y - MEAN_1[1])**2) / (2 * SIGMA**2)))
-
-# Normalise on mesh
-Imu_0 = assemble(mu_0*dx)
-Imu_1 = assemble(mu_1*dx)
-mu_1.assign(mu_1/Imu_1)
-mu_0.assign(mu_0/Imu_0)
-
+# Generate Gaussian distributions
+mu_0, mu_1 = generate_gaussians(V, MEAN_0, MEAN_1, SIGMA_0, SIGMA_1)    
 
 def sinkhorn(
     mu_0,
