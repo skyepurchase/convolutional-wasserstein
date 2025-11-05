@@ -42,7 +42,6 @@ def initialise_env(
 
     vs = []
     for sub_mesh in hierarchy:
-        print("New sub mesh")
         vs.append(make_space(sub_mesh, "CG", 1))
 
     print("Done!\n")
@@ -67,7 +66,7 @@ def generate_gaussians(V, mean_0, mean_1, sigma_0, sigma_1):
     mu_0 = Function(V)
     mu_1 = Function(V)
 
-    x, y = SpatialCoordinate(mesh)
+    x, y = SpatialCoordinate(V.mesh())
     mu_0.interpolate((1 / (2 * pi * sigma_0**2)) * exp(-((x- mean_0[0])**2 + (y - mean_0[1])**2) / (2 * sigma_0**2)))
     mu_1.interpolate((1 / (2 * pi * sigma_1**2)) * exp(-((x- mean_1[0])**2 + (y - mean_1[1])**2) / (2 * sigma_1**2)))
 
@@ -103,6 +102,8 @@ def sinkhorn(
 
     phi = Function(Vs[-1])
     psi = Function(Vs[-1])
+    curr_mu_0 = Function(Vs[0])
+    curr_mu_1 = Function(Vs[0])
 
     Solver_0 = HeatEquationSolver(Vs[0], dt=epsilons[0]/2)
     Solver_1 = HeatEquationSolver(Vs[0], dt=epsilons[0]/2)
@@ -115,17 +116,20 @@ def sinkhorn(
         Solver_0.refine(V, eps/2)
         Solver_1.refine(V, eps/2)
 
+        curr_mu_0 = assemble(interpolate(mu_0, V))
+        curr_mu_1 = assemble(interpolate(mu_0, V))
+
         i = 0
         res = 1
         while (tol < res) and (i < maxiter):
             Solver_1.solve()
             res = norm(
                 Solver_0.function -
-                (mu_0 / Solver_1.output_function)
+                (curr_mu_0 / Solver_1.output_function)
             )
-            Solver_0.update(mu_0 / Solver_1.output_function)
+            Solver_0.update(curr_mu_0 / Solver_1.output_function)
             Solver_0.solve()
-            Solver_1.update(mu_1 / Solver_0.output_function)
+            Solver_1.update(curr_mu_1 / Solver_0.output_function)
 
             print(res)
             i += 1
@@ -139,12 +143,12 @@ def sinkhorn(
 
 if __name__=='__main__':
     # Initialise mesh and function space
-    Vs = initialise_env(32768, len(EPSILONS), UnitSquareMesh, FunctionSpace)
+    Vs = initialise_env(2048, len(EPSILONS), UnitSquareMesh, FunctionSpace)
 
     # Generate Gaussian distributions
-    mu_0, mu_1 = generate_gaussians(Vs, MEAN_0, MEAN_1, SIGMA_0, SIGMA_1)
+    mu_0, mu_1 = generate_gaussians(Vs[-1], MEAN_0, MEAN_1, SIGMA_0, SIGMA_1)
 
-    phi, psi = sinkhorn(mu_0, mu_1, Vs, epsilons=EPSILON)
+    phi, psi = sinkhorn(mu_0, mu_1, Vs, epsilons=EPSILONS)
 
     print("\nVisualising...")
     Vc = Vs[-1].mesh().coordinates.function_space()

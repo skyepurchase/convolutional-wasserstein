@@ -70,6 +70,7 @@ class HeatEquationSolver:
         self.function.interpolate(value)
 
     def refine(self, new_V, new_dt):
+
         """
         Transfer the current potential into a new refined space
 
