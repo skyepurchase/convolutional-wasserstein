@@ -1,5 +1,5 @@
 from firedrake import *
-from sinkhorn import *
+from solvers import HeatEquationSolver
 import matplotlib.pyplot as plt
 from firedrake.pyplot import tripcolor
 
