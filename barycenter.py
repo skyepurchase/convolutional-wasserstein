@@ -15,7 +15,7 @@ def wasserstein_barycenter(mus, alphas):
         print("Error in weights: ", e)
         raise e
     
-    epsilon = 0.1
+    epsilon = 1
     V = FunctionSpace(UnitSquareMesh(10, 10), "CG", 1)
 
     mu = Function(V).assign(1.0)
@@ -30,17 +30,22 @@ def wasserstein_barycenter(mus, alphas):
     
     # Placeholder for barycenter computation logic
 
-    # THIS LOOP CAN BE PARALLELISED
-    for j in range(10):
-
-        curr = [assemble(interpolate(mus[i], V)) for i in range(num_dists)]
-
+    curr = [assemble(interpolate(mus[i], V)) for i in range(num_dists)]
+    for j in range(num_dists):
+        
+        # THIS LOOP CAN BE PARALLELISED
         for i in range(num_dists):
             v_list[i].solve()
             w_list[i].update(curr[i] / v_list[i].output_function)
             w_list[i].solve()
             d_list[i].interpolate(v_list[i].function * w_list[i].output_function)
             mu.interpolate(mu * (d_list[i] ** alphas[i]))
+
+        '''
+        # Normalise mu
+        Im_mu = assemble(mu * dx)
+        mu.interpolate(mu / Im_mu)
+        '''
 
         for i in range(num_dists):
             v_list[i].update(v_list[i].function * (mu / d_list[i]))
@@ -50,9 +55,9 @@ def wasserstein_barycenter(mus, alphas):
 
 V = FunctionSpace(UnitSquareMesh(10, 10), "CG", 1)
 
-mean_0 = [0.1, 0.1]
-mean_1 = [0.9, 0.9]
-mean_2 = [0.3, 0.7]
+mean_0 = [0.25, 0.25]
+mean_1 = [0.75, 0.75]
+mean_2 = [0.25, 0.75]
 
 sigma_0 = 0.1
 sigma_1 = 0.1
@@ -75,8 +80,8 @@ mu_1.assign(mu_1/Imu_1)
 mu_0.assign(mu_0/Imu_0)
 mu_2.assign(mu_2/Imu_2)
 
-mus = [mu_0, mu_1]
-alphas = [0.45, 0.55]
+mus = [mu_0, mu_1, mu_2]
+alphas = [0.6, 0.3, 0.1]
 
 bary = wasserstein_barycenter(mus, alphas)
 fig, axes = plt.subplots()
