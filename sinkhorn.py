@@ -57,35 +57,27 @@ def initialise_env(
 
     return vs
 
-
-def generate_gaussians(V, mean_0, mean_1, sigma_0, sigma_1):
+def generate_gaussian(V, mean, sigma):
     """
-    Generate simple Gaussian distributions for OT. Handles conversion to Firedrake symbolic function.
+    Generate simple Gaussian distribution for OT. Handles conversion to Firedrake symbolic function.
 
     Parameters
     ----------
     V         : Funnction space to define probability density functions on. 
-    mean_0    : 2d array containing mean of mu_0.
-    mean_1    : 2d array containing mean of mu_1.
-    sigma_0   : Standard deviation of mu_0.
-    sigma_1   : Standard deviation of mu_1.
+    mean      : 2d array containing mean of mu.
+    sigma     : Standard deviation of mu.
     """
 
-    # Set up probability distributions
-    mu_0 = Function(V)
-    mu_1 = Function(V)
+    # Set up probability distribution
+    mu = Function(V)
 
     x, y = SpatialCoordinate(V.mesh())
-    mu_0.interpolate((1 / (2 * pi * sigma_0**2)) * exp(-((x- mean_0[0])**2 + (y - mean_0[1])**2) / (2 * sigma_0**2)))
-    mu_1.interpolate((1 / (2 * pi * sigma_1**2)) * exp(-((x- mean_1[0])**2 + (y - mean_1[1])**2) / (2 * sigma_1**2)))
+    mu.interpolate((1 / (2 * pi * sigma**2)) * exp(-((x- mean[0])**2 + (y - mean[1])**2) / (2 * sigma**2)))
 
     # Normalise on mesh
-    Imu_0 = assemble(mu_0*dx)
-    Imu_1 = assemble(mu_1*dx)
-    mu_1.assign(mu_1/Imu_1)
-    mu_0.assign(mu_0/Imu_0)
-    return mu_0, mu_1
-
+    Imu = assemble(mu*dx)
+    mu.assign(mu/Imu)
+    return mu
 
 def sinkhorn(
     mu_0,
@@ -168,7 +160,8 @@ if __name__=='__main__':
     Vs = initialise_env(8192, len(EPSILONS), UnitSquareMesh, FunctionSpace)
 
     # Generate Gaussian distributions
-    mu_0, mu_1 = generate_gaussians(Vs[-1], MEAN_0, MEAN_1, SIGMA_0, SIGMA_1)
+    mu_0 = generate_gaussian(Vs[-1], MEAN_0, SIGMA_0)
+    mu_1 = generate_gaussian(Vs[-1], MEAN_1, SIGMA_1)
 
     phi, psi = sinkhorn(mu_0, mu_1, Vs, epsilons=EPSILONS)
 
