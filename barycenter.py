@@ -3,7 +3,7 @@ from solvers import HeatEquationSolver
 import matplotlib.pyplot as plt
 from firedrake.pyplot import tripcolor
 
-def wasserstein_barycenter(mus, alphas):
+def wasserstein_barycenter(mus, alphas, V):
     """
     Compute the Wasserstein barycenter of given distributions.
     """
@@ -16,7 +16,6 @@ def wasserstein_barycenter(mus, alphas):
         raise e
     
     epsilon = 1
-    V = FunctionSpace(UnitSquareMesh(10, 10), "CG", 1)
 
     mu = Function(V).assign(1.0)
 
@@ -83,7 +82,7 @@ mu_2.assign(mu_2/Imu_2)
 mus = [mu_0, mu_1, mu_2]
 alphas = [0.6, 0.3, 0.1]
 
-bary = wasserstein_barycenter(mus, alphas)
+bary = wasserstein_barycenter(mus, alphas, V)
 
 VTKFile("bary1.pvd").write(mu_0, mu_1, mu_2, bary)
 
