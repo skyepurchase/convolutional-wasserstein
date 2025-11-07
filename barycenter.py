@@ -18,6 +18,7 @@ def wasserstein_barycenter(mus, alphas, V):
     epsilon = 1
 
     mu = Function(V).assign(1.0)
+    old_mu = Function(V).assign(0.0)
 
     v_list = [HeatEquationSolver(V, dt=epsilon/2) for _ in range(num_dists)]
     w_list = [HeatEquationSolver(V, dt=epsilon/2) for _ in range(num_dists)]
@@ -30,9 +31,16 @@ def wasserstein_barycenter(mus, alphas, V):
     # Placeholder for barycenter computation logic
 
     curr = [assemble(interpolate(mus[i], V)) for i in range(num_dists)]
-    for j in range(num_dists):
+
+    j = 0
+    tol=1e-5
+    res = 1
+    maxiter = 10
+    while (res > tol) and (j < maxiter):
+    #for j in range(num_dists):
         
         # THIS LOOP CAN BE PARALLELISED
+        old_mu.assign(mu)
         for i in range(num_dists):
             v_list[i].solve()
             w_list[i].update(curr[i] / v_list[i].output_function)
@@ -48,7 +56,12 @@ def wasserstein_barycenter(mus, alphas, V):
 
         for i in range(num_dists):
             v_list[i].update(v_list[i].function * (mu / d_list[i]))
-        print("Barycenter computation complete.")
+        #print("Barycenter computation complete.")
+
+        res = norm(mu - old_mu)
+        print(f"Iteration {j}, Residual: {res}")
+
+        j += 1
 
     return mu
 
@@ -79,12 +92,12 @@ mu_1.assign(mu_1/Imu_1)
 mu_0.assign(mu_0/Imu_0)
 mu_2.assign(mu_2/Imu_2)
 
-mus = [mu_0, mu_1, mu_2]
-alphas = [0.6, 0.3, 0.1]
+mus = [mu_0, mu_1]
+alphas = [0.5, 0.5]
 
 bary = wasserstein_barycenter(mus, alphas, V)
 
-VTKFile("bary1.pvd").write(mu_0, mu_1, mu_2, bary)
+#VTKFile("bary1.pvd").write(mu_0, mu_1, mu_2, bary)
 
 fig, axes = plt.subplots()
 colors = tripcolor(bary, axes=axes)
