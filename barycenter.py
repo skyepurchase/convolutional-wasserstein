@@ -15,9 +15,9 @@ def wasserstein_barycenter(mus, alphas, V):
         print("Error in weights: ", e)
         raise e
     
-    epsilon = 1
+    epsilon = 0.05
 
-    mu = Function(V).assign(1.0)
+    mu = Function(V, name="mu").assign(1.0)
     Im_mu = assemble(mu * dx)
     mu.interpolate(mu / Im_mu)
 
@@ -49,10 +49,10 @@ def wasserstein_barycenter(mus, alphas, V):
     j = 0
     tol=1e-5
     res = 1
-    maxiter = 10
+    maxiter = 100
     while (res > tol) and (j < maxiter):
     #for j in range(num_dists):
-        
+        mu.assign(1.0)
         # THIS LOOP CAN BE PARALLELISED
         test_func.assign(w_list[0].function)
         for i in range(num_dists):
@@ -63,12 +63,6 @@ def wasserstein_barycenter(mus, alphas, V):
             mu.interpolate(mu * (d_list[i] ** alphas[i]))
 
         res = norm(test_func - w_list[0].function)
-
-        '''
-        # Normalise mu
-        Im_mu = assemble(mu * dx)
-        mu.interpolate(mu / Im_mu)
-        '''
 
         for i in range(num_dists):
             v_list[i].update(v_list[i].function * (mu / d_list[i]))
@@ -81,11 +75,12 @@ def wasserstein_barycenter(mus, alphas, V):
 
     return mu
 
-V = FunctionSpace(UnitSquareMesh(100, 100), "CG", 1)
+n = 100
+V = FunctionSpace(UnitSquareMesh(n, n), "CG", 1)
 
-mean_0 = [0.25, 0.25]
-mean_1 = [0.75, 0.75]
-mean_2 = [0.25, 0.75]
+mean_0 = [0.4, 0.4]
+mean_1 = [0.6, 0.6]
+mean_2 = [0.4, 0.6]
 
 sigma_0 = 0.1
 sigma_1 = 0.1
@@ -113,9 +108,8 @@ alphas = [0.5, 0.5]
 
 bary = wasserstein_barycenter(mus, alphas, V)
 
-#VTKFile("bary1.pvd").write(mu_0, mu_1, mu_2, bary)
+VTKFile("bary1.pvd").write(mu_0, mu_1, mu_2, bary)
 
-fig, axes = plt.subplots()
-colors = tripcolor(bary, axes=axes)
-fig.colorbar(colors)
-plt.show()
+#colors = tripcolor(bary, axes=axes)
+#fig.colorbar(colors)
+#plt.show()
