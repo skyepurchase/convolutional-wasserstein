@@ -18,11 +18,25 @@ def wasserstein_barycenter(mus, alphas, V):
     epsilon = 1
 
     mu = Function(V).assign(1.0)
-    old_mu = Function(V).assign(0.0)
+    Im_mu = assemble(mu * dx)
+    mu.interpolate(mu / Im_mu)
 
+    test_func = Function(V).assign(0.0)
+
+    v_list = []
+    w_list = []
+    d_list = []
+
+    for _ in range(num_dists):
+        v_list.append(HeatEquationSolver(V, dt=epsilon/2))
+        w_list.append(HeatEquationSolver(V, dt=epsilon/2))
+        d_list.append(Function(V).assign(1.0))
+
+    '''
     v_list = [HeatEquationSolver(V, dt=epsilon/2) for _ in range(num_dists)]
     w_list = [HeatEquationSolver(V, dt=epsilon/2) for _ in range(num_dists)]
     d_list = [Function(V).assign(1.0) for _ in range(num_dists)]
+    '''
 
     for i in range(num_dists):
         v_list[i].initialise()
@@ -40,13 +54,15 @@ def wasserstein_barycenter(mus, alphas, V):
     #for j in range(num_dists):
         
         # THIS LOOP CAN BE PARALLELISED
-        old_mu.assign(mu)
+        test_func.assign(w_list[0].function)
         for i in range(num_dists):
             v_list[i].solve()
             w_list[i].update(curr[i] / v_list[i].output_function)
             w_list[i].solve()
             d_list[i].interpolate(v_list[i].function * w_list[i].output_function)
             mu.interpolate(mu * (d_list[i] ** alphas[i]))
+
+        res = norm(test_func - w_list[0].function)
 
         '''
         # Normalise mu
@@ -58,14 +74,14 @@ def wasserstein_barycenter(mus, alphas, V):
             v_list[i].update(v_list[i].function * (mu / d_list[i]))
         #print("Barycenter computation complete.")
 
-        res = norm(mu - old_mu)
+        #res = norm(mu - old_mu)
         print(f"Iteration {j}, Residual: {res}")
 
         j += 1
 
     return mu
 
-V = FunctionSpace(UnitSquareMesh(10, 10), "CG", 1)
+V = FunctionSpace(UnitSquareMesh(100, 100), "CG", 1)
 
 mean_0 = [0.25, 0.25]
 mean_1 = [0.75, 0.75]
