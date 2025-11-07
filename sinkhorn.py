@@ -9,7 +9,6 @@ except:
     TQDM=False
 
 from firedrake import *
-from firedrake.pyplot import tripcolor
 
 from solvers import HeatEquationSolver
 
@@ -42,8 +41,15 @@ def initialise_env(
     vs : The hierarchy of function spaces
     """
     print("\nInitialising environment (this may take a while)...")
+
+    # Short cut for non-hierarchical mesh
+    if levels == 1:
+        mesh = mesher(target_size, target_size)
+        V = make_space(mesh, "CG", 1)
+        return [V]
+
     # Calculate the coarse size to refine (each cell becomes 4)
-    start_size = int(target_size / (4**levels))
+    start_size = int(target_size / (4**(levels-1)))
 
     mesh = mesher(start_size, start_size)
     hierarchy = MeshHierarchy(mesh, levels)
@@ -112,16 +118,25 @@ def sinkhorn(
     Solver_1.initialise()
 
     if TQDM:
-        iter = tqdm(
+        outer_iter = tqdm(
             zip(Vs, epsilons),
             total=len(Vs),
             leave=False
         )
+        inner_iter = tqdm(
+            range(maxiter),
+            leave=False
+        )
     else:
-        iter = zip(Vs, epsilons)
+        outer_iter = zip(Vs, epsilons)
+        inner_iter = range(maxiter)
 
-    for V, eps in iter:
-        if not TQDM: print(f"\nRunning with epsilon={eps}\n")
+    final_res = float("inf")
+    for V, eps in outer_iter:
+        if TQDM:
+            outer_iter.set_description(f"epsilon={eps}")
+        else:
+            print(f"\nRunning with epsilon={eps}\n")
 
         Solver_0.refine(V, eps/2)
         Solver_1.refine(V, eps/2)
@@ -129,9 +144,11 @@ def sinkhorn(
         curr_mu_0 = assemble(interpolate(mu_0, V))
         curr_mu_1 = assemble(interpolate(mu_1, V))
 
-        i = 0
-        res = 1
-        while (tol < res) and (i < maxiter):
+        res = float("inf")
+        for _ in inner_iter:
+            # Stop iterating once tolerance is reached
+            if tol > res: break
+
             Solver_1.solve()
             res = norm(
                 Solver_0.function -
@@ -142,20 +159,22 @@ def sinkhorn(
             Solver_1.update(curr_mu_1 / Solver_0.output_function)
 
             if TQDM:
-                iter.set_description(f"epsilon={eps} residual={res:.6f}")
+                inner_iter.set_description(f"residual={res:.6f}")
             else:
                 print(res)
 
-            i += 1
+            final_res = res
 
     phi.interpolate(epsilons[-1] * ln(Solver_0.function))
     psi.interpolate(epsilons[-1] * ln(Solver_1.function))
 
-    print("Done!\n")
+    print(f"Done! Final residual: {final_res}\n")
     return phi, psi
 
 
 if __name__=='__main__':
+    from firedrake.pyplot import tripcolor
+
     # Initialise mesh and function space
     Vs = initialise_env(8192, len(EPSILONS), UnitSquareMesh, FunctionSpace)
 
