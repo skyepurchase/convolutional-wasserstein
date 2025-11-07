@@ -84,6 +84,9 @@ mus = [mu_0, mu_1, mu_2]
 alphas = [0.6, 0.3, 0.1]
 
 bary = wasserstein_barycenter(mus, alphas)
+
+VTKFile("bary1.pvd").write(mu_0, mu_1, mu_2, bary)
+
 fig, axes = plt.subplots()
 colors = tripcolor(bary, axes=axes)
 fig.colorbar(colors)
