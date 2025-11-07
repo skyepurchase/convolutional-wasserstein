@@ -3,7 +3,7 @@ from solvers import HeatEquationSolver
 import matplotlib.pyplot as plt
 from firedrake.pyplot import tripcolor
 
-def wasserstein_barycenter(mus, alphas, V):
+def wasserstein_barycenter(mus, alphas, V, epsilon=0.05, tol=1e-5, maxiter=100):
     """
     Compute the Wasserstein barycenter of given distributions.
     """
@@ -14,8 +14,6 @@ def wasserstein_barycenter(mus, alphas, V):
     except AssertionError as e:
         print("Error in weights: ", e)
         raise e
-    
-    epsilon = 0.05
 
     mu = Function(V, name="mu").assign(1.0)
     Im_mu = assemble(mu * dx)
@@ -47,9 +45,7 @@ def wasserstein_barycenter(mus, alphas, V):
     curr = [assemble(interpolate(mus[i], V)) for i in range(num_dists)]
 
     j = 0
-    tol=1e-5
     res = 1
-    maxiter = 100
     while (res > tol) and (j < maxiter):
     #for j in range(num_dists):
         mu.assign(1.0)
