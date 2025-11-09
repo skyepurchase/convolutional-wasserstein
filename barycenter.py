@@ -3,7 +3,7 @@ from solvers import HeatEquationSolver
 import matplotlib.pyplot as plt
 from firedrake.pyplot import tripcolor
 
-def wasserstein_barycenter(mus, alphas, V, epsilon=0.05, tol=1e-5, maxiter=100):
+def wasserstein_barycenter(mus, alphas, V, epsilon=0.05, tol=1e-5, maxiter=100, v_list=None, w_list=None):
     """
     Compute the Wasserstein barycenter of given distributions.
     """
@@ -21,13 +21,16 @@ def wasserstein_barycenter(mus, alphas, V, epsilon=0.05, tol=1e-5, maxiter=100):
 
     test_func = Function(V).assign(0.0)
 
-    v_list = []
-    w_list = []
     d_list = []
 
+    if not v_list and not w_list:
+        v_list = []
+        w_list = []
+        for _ in range(num_dists):
+            v_list.append(HeatEquationSolver(V, dt=epsilon/2))
+            w_list.append(HeatEquationSolver(V, dt=epsilon/2))
+    
     for _ in range(num_dists):
-        v_list.append(HeatEquationSolver(V, dt=epsilon/2))
-        w_list.append(HeatEquationSolver(V, dt=epsilon/2))
         d_list.append(Function(V).assign(1.0))
 
     '''
@@ -69,7 +72,7 @@ def wasserstein_barycenter(mus, alphas, V, epsilon=0.05, tol=1e-5, maxiter=100):
 
         j += 1
 
-    return mu
+    return mu, v_list, w_list
 
 n = 100
 V = FunctionSpace(UnitSquareMesh(n, n), "CG", 1)
@@ -102,10 +105,26 @@ mu_2.assign(mu_2/Imu_2)
 mus = [mu_0, mu_1]
 alphas = [0.5, 0.5]
 
-bary = wasserstein_barycenter(mus, alphas, V)
+_, v_list, w_list = wasserstein_barycenter(mus, alphas, V, epsilon = 1)
+_, v_list, w_list = wasserstein_barycenter(mus, alphas, V, epsilon = 0.1, v_list=v_list, w_list=w_list)
+bary1, _, _ = wasserstein_barycenter(mus, alphas, V, epsilon = 0.01, v_list=v_list, w_list=w_list)
 
-VTKFile("bary1.pvd").write(mu_0, mu_1, mu_2, bary)
+print('done')
 
-#colors = tripcolor(bary, axes=axes)
-#fig.colorbar(colors)
-#plt.show()
+bary2, _, _ = wasserstein_barycenter(mus, alphas, V, epsilon = 0.01)
+VTKFile("bary1.pvd").write(mu_0, mu_1, mu_2, bary1)
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+# First plot
+colors1 = tripcolor(bary1, axes=axes[0])
+fig.colorbar(colors1, ax=axes[0])
+axes[0].set_title("Bary1")
+
+# Second plot
+colors2 = tripcolor(bary2, axes=axes[1])
+fig.colorbar(colors2, ax=axes[1])
+axes[1].set_title("Bary2")
+
+plt.tight_layout()
+plt.show()
