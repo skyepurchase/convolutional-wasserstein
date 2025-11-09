@@ -53,11 +53,14 @@ class HeatEquationSolver:
         self.solver.solve()
         return self.output_function
 
-    def initialise(self):
+    def initialise(self, value=None):
         """
         Initialise the function to all ones to prevent blow-up
         """
-        self.function.assign(1.0)
+        if not value:
+            self.function.assign(1.0)
+        else:
+            self.function.assign(value)
 
     def update(self, value):
         """
