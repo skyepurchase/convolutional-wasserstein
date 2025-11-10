@@ -3,7 +3,7 @@ from solvers import HeatEquationSolver
 import matplotlib.pyplot as plt
 from firedrake.pyplot import tripcolor
 
-def wasserstein_barycenter(mus, alphas, V, epsilon=0.05, tol=1e-5, maxiter=100, v_funcs=None, w_funcs=None):
+def wasserstein_barycenter(mus, alphas, V, epsilon=0.05, tol=1e-7, maxiter=100, v_list=None, w_list=None):
     """
     Compute the Wasserstein barycenter of given distributions.
     """
@@ -19,15 +19,24 @@ def wasserstein_barycenter(mus, alphas, V, epsilon=0.05, tol=1e-5, maxiter=100, 
     Im_mu = assemble(mu * dx)
     mu.interpolate(mu / Im_mu)
 
-    test_func = Function(V).assign(0.0)
+    test_func = Function(V).assign(1.0)
 
-    v_list = []
-    w_list = []
     d_list = []
 
-    for _ in range(num_dists):
-        v_list.append(HeatEquationSolver(V, dt=epsilon/2))
-        w_list.append(HeatEquationSolver(V, dt=epsilon/2))
+    if not v_list and not w_list:
+        v_list = []
+        w_list = []
+        for _ in range(num_dists):
+            v_list.append(HeatEquationSolver(V, dt=epsilon/2))
+            w_list.append(HeatEquationSolver(V, dt=epsilon/2))
+        for i in range(num_dists):
+            v_list[i].initialise()
+            w_list[i].initialise()
+
+    else:
+        for i in range(num_dists):
+            v_list[i].update_dt(epsilon/2)
+            w_list[i].update_dt(epsilon/2)
     
     for _ in range(num_dists):
         d_list.append(Function(V).assign(1.0))
@@ -37,16 +46,6 @@ def wasserstein_barycenter(mus, alphas, V, epsilon=0.05, tol=1e-5, maxiter=100, 
     w_list = [HeatEquationSolver(V, dt=epsilon/2) for _ in range(num_dists)]
     d_list = [Function(V).assign(1.0) for _ in range(num_dists)]
     '''
-
-    if not v_funcs and not w_funcs:
-        for i in range(num_dists):
-            v_list[i].initialise()
-            w_list[i].initialise()
-    else:
-        for i in range(num_dists):
-            v_list[i].initialise(v_funcs[i])
-            w_list[i].initialise(w_funcs[i])
-    
     # Placeholder for barycenter computation logic
 
     curr = [assemble(interpolate(mus[i], V)) for i in range(num_dists)]
@@ -76,10 +75,7 @@ def wasserstein_barycenter(mus, alphas, V, epsilon=0.05, tol=1e-5, maxiter=100, 
 
         j += 1
 
-    v_funcs = [v_list[i].function for i in range(num_dists)]
-    w_funcs = [w_list[i].function for i in range(num_dists)]
-
-    return mu, v_funcs, w_funcs
+    return mu, v_list, w_list
 
 n = 100
 V = FunctionSpace(UnitSquareMesh(n, n), "CG", 1)
@@ -112,8 +108,8 @@ mu_2.assign(mu_2/Imu_2)
 mus = [mu_0, mu_1]
 alphas = [0.5, 0.5]
 
-_, v_funcs, w_funcs = wasserstein_barycenter(mus, alphas, V, epsilon=2)
-bary1, v_funcs, w_funcs = wasserstein_barycenter(mus, alphas, V, epsilon=0.1, v_funcs=v_funcs, w_funcs=w_funcs)
+_, v_list, w_list = wasserstein_barycenter(mus, alphas, V, epsilon=1)
+bary1, v_list, w_list = wasserstein_barycenter(mus, alphas, V, epsilon=0.1, v_list=v_list, w_list=w_list)
 #bary1, _, _ = wasserstein_barycenter(mus, alphas, V, epsilon=0.005, v_funcs=v_funcs, w_funcs=w_funcs)
 
 print('done')

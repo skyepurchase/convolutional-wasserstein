@@ -28,14 +28,14 @@ class HeatEquationSolver:
         self.function = Function(V)
         self.output_function = Function(V)
 
-        a = (
+        self.a = (
             self.dt * inner(grad(self.u), grad(self.v)) +
             inner(self.u, self.v)
         ) * dx
-        L = inner(self.function, self.v) * dx
+        self.L = inner(self.function, self.v) * dx
 
         self.problem = LinearVariationalProblem(
-            a, L, self.output_function
+            self.a, self.L, self.output_function
         )
         self.params = params
         self.solver = LinearVariationalSolver(
@@ -72,6 +72,29 @@ class HeatEquationSolver:
         """
         self.function.interpolate(value)
 
+    def update_dt(self, new_dt):
+        """
+        Update the timestep of the solver.
+
+        Parameters
+        ----------
+        new_dt : The new timestep
+        """
+        self.dt = new_dt
+
+        # Re-setup problem and solver with new dt
+        self.a = (
+            self.dt * inner(grad(self.u), grad(self.v)) +
+            inner(self.u, self.v)
+        ) * dx
+        self.L = inner(self.function, self.v) * dx
+        self.problem = LinearVariationalProblem(
+            self.a, self.L, self.output_function
+        )
+        self.solver = LinearVariationalSolver(
+            self.problem, solver_parameters=self.params
+        )
+
     def refine(self, new_V, new_dt):
 
         """
@@ -93,14 +116,13 @@ class HeatEquationSolver:
         self.function = assemble(interpolate(self.function, new_V))
 
         # Setup problem and solver
-        a = (
+        self.a = (
             self.dt * inner(grad(self.u), grad(self.v)) +
             inner(self.u, self.v)
         ) * dx
-        L = inner(self.function, self.v) * dx
-
+        self.L = inner(self.function, self.v) * dx
         self.problem = LinearVariationalProblem(
-            a, L, self.output_function
+            self.a, self.L, self.output_function
         )
         self.solver = LinearVariationalSolver(
             self.problem, solver_parameters=self.params
