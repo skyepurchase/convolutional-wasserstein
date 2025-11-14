@@ -14,7 +14,7 @@ def wasserstein_barycenter(mus, alphas):
     except AssertionError as e:
         print("Error in weights: ", e)
         raise e
-    
+
     epsilon = 1
     V = FunctionSpace(UnitSquareMesh(10, 10), "CG", 1)
 
@@ -27,12 +27,12 @@ def wasserstein_barycenter(mus, alphas):
     for i in range(num_dists):
         v_list[i].initialise()
         w_list[i].initialise()
-    
+
     # Placeholder for barycenter computation logic
 
     curr = [assemble(interpolate(mus[i], V)) for i in range(num_dists)]
     for j in range(num_dists):
-        
+
         # THIS LOOP CAN BE PARALLELISED
         for i in range(num_dists):
             v_list[i].solve()
