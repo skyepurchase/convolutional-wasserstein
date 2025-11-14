@@ -10,80 +10,9 @@ except:
 
 from firedrake import *
 
+from utils import initialise_env, generate_gaussian, visualise_2D_transport
 from solvers import HeatEquationSolver
 
-
-# Constants
-EPSILONS = [0.1, 0.05, 0.02, 0.01]
-MEAN_0 = [0.1, 0.1]
-MEAN_1 = [0.5, 0.5]
-SIGMA_0 = SIGMA_1 = 0.1
-
-
-def initialise_env(
-    target_size,
-    levels,
-    mesher,
-    make_space
-):
-    """
-    Initialise a function space hierarchy
-
-    Parameters
-    ----------
-    target_size : The size of the finest grid
-    levels      : The number of levels to create
-    mesher      : The firedrake mesh maker
-    make_space  : The function space maker
-
-    Returns
-    -------
-    vs : The hierarchy of function spaces
-    """
-    print("\nInitialising environment (this may take a while)...")
-
-    # Short cut for non-hierarchical mesh
-    if levels == 1:
-        mesh = mesher(target_size, target_size)
-        V = make_space(mesh, "CG", 1)
-        return [V]
-
-    # Calculate the coarse size to refine (each cell becomes 4)
-    start_size = int(target_size / (4**(levels-1)))
-
-    mesh = mesher(start_size, start_size)
-    hierarchy = MeshHierarchy(mesh, levels)
-
-    vs = []
-
-    for sub_mesh in hierarchy:
-        vs.append(make_space(sub_mesh, "CG", 1))
-
-    print("Done!\n")
-
-    return vs
-
-def generate_gaussian(V, mean, sigma):
-    """
-    Generate simple Gaussian distribution for OT. Handles conversion to Firedrake symbolic function.
-
-    Parameters
-    ----------
-    V         : Funnction space to define probability density functions on. 
-    mean      : 2d array containing mean of mu.
-    sigma     : Standard deviation of mu.
-    """
-
-    # Set up probability distribution
-    mu = Function(V)
-
-    x, y = SpatialCoordinate(V.mesh())
-    mu.interpolate((1 / (2 * pi * sigma**2)) * exp(-((x- mean[0])**2 + (y - mean[1])**2) / (2 * sigma**2)))
-
-    # Normalise on mesh
-    Imu = assemble(mu*dx)
-    mu.assign(mu/Imu)
-    return mu
 
 def sinkhorn(
     mu_0,
@@ -175,22 +104,21 @@ def sinkhorn(
 if __name__=='__main__':
     from firedrake.pyplot import tripcolor
 
+    epsilons = [0.1, 0.05, 0.02, 0.01]
+    mean_0 = [0.1, 0.1]
+    mean_1 = [0.5, 0.5]
+    sigma_0 = 0.01
+    sigma_1 = 0.1
+
     # Initialise mesh and function space
-    Vs = initialise_env(8192, len(EPSILONS), UnitSquareMesh, FunctionSpace)
+    Vs = initialise_env(2048, len(epsilons), UnitSquareMesh, FunctionSpace)
 
     # Generate Gaussian distributions
-    mu_0 = generate_gaussian(Vs[-1], MEAN_0, SIGMA_0)
-    mu_1 = generate_gaussian(Vs[-1], MEAN_1, SIGMA_1)
+    mu_0 = generate_gaussian(Vs[-1], mean_0, sigma_0)
+    mu_1 = generate_gaussian(Vs[-1], mean_1, sigma_1)
 
-    phi, psi = sinkhorn(mu_0, mu_1, Vs, epsilons=EPSILONS)
+    phi, psi = sinkhorn(mu_0, mu_1, Vs, epsilons=epsilons)
 
     print("\nVisualising...")
-    Vc = Vs[-1].mesh().coordinates.function_space()
-    x, y = SpatialCoordinate(Vs[-1].mesh())
-    f = Function(Vc).interpolate(grad(phi))
-    Vs[-1].mesh().coordinates.assign(f)
-
-    fig, axes = plt.subplots()
-    colors = tripcolor(mu_0, axes=axes)
-    fig.colorbar(colors)
-    plt.show()
+    visualise_2D_transport(Vs[-1], phi, "test.pvd")
+    print("\nSaved.")
