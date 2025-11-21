@@ -39,7 +39,7 @@ def wasserstein_barycenter(mus, alphas, V, epsilon=0.05, tol=1e-5, maxiter=100):
     for i in range(num_dists):
         v_list[i].initialise()
         w_list[i].initialise()
-    
+
     # Placeholder for barycenter computation logic
 
     curr = [assemble(interpolate(mus[i], V)) for i in range(num_dists)]

@@ -28,14 +28,14 @@ class HeatEquationSolver:
         self.function = Function(V)
         self.output_function = Function(V)
 
-        a = (
+        self.a = (
             self.dt * inner(grad(self.u), grad(self.v)) +
             inner(self.u, self.v)
         ) * dx
-        L = inner(self.function, self.v) * dx
+        self.L = inner(self.function, self.v) * dx
 
         self.problem = LinearVariationalProblem(
-            a, L, self.output_function
+            self.a, self.L, self.output_function
         )
         self.params = params
         self.solver = LinearVariationalSolver(
@@ -70,7 +70,6 @@ class HeatEquationSolver:
         self.function.interpolate(value)
 
     def refine(self, new_V, new_dt):
-
         """
         Transfer the current potential into a new refined space
 
@@ -90,14 +89,14 @@ class HeatEquationSolver:
         self.function = assemble(interpolate(self.function, new_V))
 
         # Setup problem and solver
-        a = (
+        self.a = (
             self.dt * inner(grad(self.u), grad(self.v)) +
             inner(self.u, self.v)
         ) * dx
-        L = inner(self.function, self.v) * dx
+        self.L = inner(self.function, self.v) * dx
 
         self.problem = LinearVariationalProblem(
-            a, L, self.output_function
+            self.a, self.L, self.output_function
         )
         self.solver = LinearVariationalSolver(
             self.problem, solver_parameters=self.params

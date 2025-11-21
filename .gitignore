@@ -20,3 +20,6 @@ petsc/
 
 # test files
 experimental/
+
+# Images
+*.png
