@@ -70,7 +70,24 @@ def generate_gaussian(V, mean, sigma):
     return mu
 
 
-def visualise_2D_transport(V, phi, filename):
+def visualise_2D_transport(
+    V,
+    phi,
+    filename: str,
+    source=None,
+    target=None
+):
+    """
+    Visualise the 2D transport of two distributions.
+
+    Parameters
+    ----------
+    V        : The function space
+    phi      : The potential function
+    filename : The location to store the image
+    source   : The centre of the source distribution
+    target   : The centre of the target distribution
+    """
     mesh = V.mesh()
     x, y = SpatialCoordinate(mesh)
     Vc = mesh.coordinates.function_space()
@@ -78,7 +95,20 @@ def visualise_2D_transport(V, phi, filename):
     T = Function(Vc).interpolate(as_vector((x,y)) + grad(phi))
 
     print("\nVisualising...")
-    fig, axes = plt.subplots()
-    colors = tripcolor(T, axes=axes)
+    fig, ax = plt.subplots()
+    colors = tripcolor(T, axes=ax)
+
+    if source is not None and target is not None:
+        ax.scatter(source[0], source[1], marker='o', c='k')
+        ax.scatter(target[0], target[1], marker='x', c='k')
+
+    ax.set_title(filename.capitalize())
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
     fig.colorbar(colors)
+
     plt.savefig(f"{filename}.png", format="png")
