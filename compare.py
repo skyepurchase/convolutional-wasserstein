@@ -34,7 +34,11 @@ if __name__=='__main__':
         epsilons=VANILLA_EPS,
         maxiter=NUM_LEVELS*NUM_ITERS
     )
-    visualise_2D_transport(vanilla[-1], phi, "vanilla")
+    visualise_2D_transport(
+        vanilla[-1], phi, "vanilla",
+        source=MEAN_0,
+        target=MEAN_1
+    )
 
     print(f"\nRUNNING HIERACHICAL FOR {NUM_ITERS} ITERATIONS PER LEVEL\n")
     phi, _ = sinkhorn(
@@ -44,4 +48,8 @@ if __name__=='__main__':
         epsilons=HIER_EPS,
         maxiter=NUM_ITERS
     )
-    visualise_2D_transport(hierarchical[-1], phi, "hierarchical")
+    visualise_2D_transport(
+        hierarchical[-1], phi, "hierarchical",
+        source=MEAN_0,
+        target=MEAN_1
+    )

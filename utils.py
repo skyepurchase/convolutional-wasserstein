@@ -36,7 +36,7 @@ def initialise_env(
     start_size = int(target_size / (4**(levels-1)))
 
     mesh = mesher(start_size, start_size)
-    hierarchy = MeshHierarchy(mesh, levels)
+    hierarchy = MeshHierarchy(mesh, levels-1)
 
     vs = []
 
